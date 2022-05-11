@@ -156,10 +156,10 @@
    
    
    } else if (  check.IsTradeAllowed() && find.TradeAllowed()) {
-      Alert("Your EA is allowd to trade");
+      Print("Your EA is allowd to trade");
       return true;
    } else {
-      Alert("Expert Advisor is NOT Allowed to Trade. Find out why.");
+      Print("Expert Advisor is NOT Allowed to Trade. Find out why.");
       return false;
    }
    

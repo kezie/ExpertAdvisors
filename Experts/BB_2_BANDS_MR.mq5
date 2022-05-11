@@ -28,6 +28,29 @@ input int bandStdLossExit = 6;
    double shortSLvalue;
    double buySLvalue;
    int openOrderID;
+   int rsiPeriod = 14;
+   input int rsiLowerLevel = 40;
+input int rsiUpperLevel = 60;
+
+
+   // Price Entry Buffer  
+   double bbupperEntryBuffer[]; 
+   double bbMidBuffer[];
+   double bblowerEntryBuffer[];
+   
+   //TP Buffer
+   double bbupperProfitBuffer[]; 
+   double bblowerProfitBuffer[];
+   
+   //SL Buffer
+   double bbupperLossBuffer[]; 
+   double bblowerLossBuffer[];
+   
+   // Open Buffer
+   double OpenBuffer[];
+   
+    // iRSI Buffer    
+    double iRSIBuffer[]; 
 
 //+------------------------------------------------------------------+
 //| Expert initialization function                                   |
@@ -59,18 +82,7 @@ void OnTick()
    
    
    
-   // Price Entry Buffer  
-   double bbupperEntryBuffer[]; 
-   double bbMidBuffer[];
-   double bblowerEntryBuffer[];
-   
-   //TP Buffer
-   double bbupperProfitBuffer[]; 
-   double bblowerProfitBuffer[];
-   
-   //SL Buffer
-   double bbupperLossBuffer[]; 
-   double bblowerLossBuffer[];
+
    
       // Indicator Handles   
    
@@ -89,6 +101,9 @@ void OnTick()
    ArraySetAsSeries(bbupperLossBuffer,true);
    ArraySetAsSeries(bblowerLossBuffer,true);
    
+   // Arrange Open Buffer
+   ArraySetAsSeries(OpenBuffer,true);
+   
 
 
    //Copy Buffers
@@ -100,6 +115,10 @@ void OnTick()
    CopyBuffer(SLhandle,1,0,3,bbupperLossBuffer);
    CopyBuffer(SLhandle,2,0,3,bblowerLossBuffer);
    
+   //Copy Open
+   
+   CopyOpen(mySymbol,timeFrame,0,3,OpenBuffer);
+   
    
   //calcualte EA for the cuurent candle
    shortValue= NormalizeDouble(bbupperEntryBuffer[0], _Digits);
@@ -109,8 +128,11 @@ void OnTick()
     shortSLvalue= NormalizeDouble(bbupperLossBuffer[0], _Digits);
     buySLvalue= NormalizeDouble(bblowerLossBuffer[0], _Digits);
    
-   
-
+   // For RSI
+   int rsiValue = iRSI(mySymbol,timeFrame,rsiPeriod, PRICE_CLOSE);
+   CopyBuffer(rsiValue,0,0,3,iRSIBuffer);
+   ArraySetAsSeries(iRSIBuffer,true);
+   double RSI = NormalizeDouble(iRSIBuffer[0],2);
 
    
    
@@ -131,7 +153,7 @@ void OnTick()
                     MqlTradeRequest request = {};
                      MqlTradeResult result = {};  
                      
-                     if ( buySLvalue < latestPrice.ask && latestPrice.ask <= buyValue) { //Buying
+                     if ( latestPrice.ask <buyValue && OpenBuffer[0] > buyValue && RSI < rsiLowerLevel) { //Buying
                            
                            
                            Alert("Price is below signalPrice. Sending buy order");
@@ -172,7 +194,7 @@ void OnTick()
                            
                            
                     
-                    }else if (shortSLvalue > latestPrice.bid && latestPrice.bid >= shortSLvalue) //shorting
+                    }else if (latestPrice.bid <shortValue && OpenBuffer[0] > shortValue && RSI < rsiUpperLevel) //shorting
                     {
                            Alert("Price is above signalPrice. Sending Short order");
                         
