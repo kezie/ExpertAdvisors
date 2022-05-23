@@ -226,21 +226,48 @@
    }
    
    
-   // CHeck Open Orders by Expert Magic Number
+   // Check Open Orders by Expert Magic Number
    
    bool CheckIfOpenOrdersByMagicNB(int magicNB)
 {
-   int openOrders = PositionsTotal();
+   int openPositions = PositionsTotal();
    
-   for(int i = 0; i < openOrders; i++)
+   int openOrders = OrdersTotal();
+   
+   bool token1 = false;
+   bool token2 = false;
+   
+   //Check for open positions
+   for(int i = 0; i < openPositions; i++)
    {
       if(PositionSelect(PositionGetSymbol(i))==true)
       {
          if(PositionGetInteger(POSITION_MAGIC) == magicNB) 
          {
-            return true;
+         
+            token1 = true;
+            
          }  
       }
    }
+   
+   //Check for Open Orders
+   
+   for(int i = 0; i < openOrders; i++)
+   {
+      if(OrderSelect(OrderGetTicket(i))==true)
+      {
+         if(OrderGetInteger(ORDER_MAGIC) == magicNB) 
+         {
+         
+            token2 = true;
+            
+         }  
+      }
+   }
+   if (token1 || token2) {
+   return true;
+   }
+   
    return false;
 }
