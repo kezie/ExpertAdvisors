@@ -232,6 +232,20 @@
 {
    int openPositions = PositionsTotal();
    
+   //Check for open positions
+   for(int i = 0; i < openPositions; i++)
+   {
+      if(PositionSelect(PositionGetSymbol(i))==true)
+      {
+         if(PositionGetInteger(POSITION_MAGIC) == magicNB) 
+         {
+         
+            return true;
+            
+         }  
+      }
+   }
+   /*
    int openOrders = OrdersTotal();
    
    bool token1 = false;
@@ -257,17 +271,19 @@
    {
       if(OrderSelect(OrderGetTicket(i))==true)
       {
-         if(OrderGetInteger(ORDER_MAGIC) == magicNB) 
-         {
-         
-            token2 = true;
-            
+         if (_Symbol == OrderGetString(ORDER_SYMBOL))
+            { 
+               if (OrderGetInteger(ORDER_MAGIC) == magicNB) 
+                  {
+             
+               token2 = true;
+            }
          }  
       }
    }
    if (token1 || token2) {
    return true;
-   }
+   } */
    
    return false;
 }
