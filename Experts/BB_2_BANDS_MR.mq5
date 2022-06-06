@@ -235,9 +235,47 @@ void OnTick()
                            
                            
                            
-                     } else {/*
+                     } else {
+                     
+                           if(OrderSelect(openOrderID,SELECT_BY_TICKET)==true)
+      {
+            int orderType = OrderType();// Short = 1, Long = 0
+
+            double optimalTakeProfit;
+            
+            if(orderType == 0)//long position
+            {
+               optimalTakeProfit = NormalizeDouble(bbUpperProfitExit,Digits);
+               
+            }
+            else //if short
+            {
+               optimalTakeProfit = NormalizeDouble(bbLowerProfitExit,Digits);
+            }
+
+            double TP = OrderTakeProfit();
+            double TPdistance = MathAbs(TP - optimalTakeProfit);
+            if(TP != optimalTakeProfit && TPdistance > 0.0001)
+            {
+               bool Ans = OrderModify(openOrderID,OrderOpenPrice(),OrderStopLoss(),optimalTakeProfit,0);
+            
+               if (Ans==true)                     
+               {
+                  Print("Order modified: ",openOrderID);
+                  return;                           
+               }else
+               {
+                  Print("Unable to modify order: ",openOrderID);
+               }   
+            }
+                     
+                     
+                     
+                     
+                     
+                     
                            
-                                  if(PositionSelect(PositionGetSymbol(openOrderID))
+                                  /*if(PositionSelect(mySymbol) {
                   {
                         int orderType = PositionGetInteger(POSITION_TYPE)// Short = 1, Long = 0
             
@@ -270,6 +308,7 @@ void OnTick()
                         }
                      }
                      */
+        }
         }
         }
   

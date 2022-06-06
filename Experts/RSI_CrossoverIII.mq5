@@ -21,14 +21,16 @@
    input int myShift = 0; //Get shift or use default
 input int bandStdEntry = 2;
 input int bandStdProfitExit = 1;
-input int bandStdLossExit = 4;
+input int bandStdLossExit = 3;
    input ENUM_APPLIED_PRICE appliedPrice = PRICE_CLOSE; //get the price to apply
    input ENUM_TIMEFRAMES timeFrame = PERIOD_CURRENT; //Get the period to use or use default
    input double risk = 0.02; //Get Maximum Account risk per trade
+   input double adjustmentFactor = 0.0002; //set variance in price from BB to enter trade
    
    double shortValue;
    double buyValue;
    double buyTPvalue;
+   double TPvalue;
    double shortTPvalue;
    double shortSLvalue;
    double buySLvalue;
@@ -62,6 +64,28 @@ input int bandStdLossExit = 4;
     
    //Optimal Take Profit
    double optimalTakeProfit; 
+   
+   
+   //For Trailing Stoploss
+   input int TslTriggerPoints = 5000;
+   input int TslPoints = 20;
+   
+   input ENUM_TIMEFRAMES TSLMaTimeFrame = PERIOD_CURRENT;
+   input int TslMaPeriod = 20;
+   input ENUM_MA_METHOD TslMaMethod = MODE_SMA;
+   input ENUM_APPLIED_PRICE TslMaAppPrice = PRICE_CLOSE;
+   
+   // INitialize Indicator Handles  
+   
+   int handleMa;  
+   
+   int Entryhandle;
+   
+   int SLhandle;
+   
+   int TPhandle; 
+   
+   int rsiValue;
 //+------------------------------------------------------------------+
 //| Expert initialization function                                   |
 //+------------------------------------------------------------------+
@@ -69,8 +93,19 @@ int OnInit()
   {
 //---
 
-   Alert("");
-    Alert("Starting Strategy RSI Crossover Test");
+      Alert("");
+      Alert("Starting Strategy RSI Crossover Test");
+    
+      // Indicator Handles   
+   
+      Entryhandle= iBands(mySymbol,timeFrame,bbPeriod,myShift,bandStdEntry,appliedPrice);
+   
+      SLhandle = iBands(mySymbol,timeFrame,bbPeriod,myShift,bandStdLossExit,appliedPrice);
+   
+      TPhandle = iBands(mySymbol,timeFrame,bbPeriod,myShift,bandStdProfitExit,appliedPrice); 
+      handleMa = iMA(_Symbol, TSLMaTimeFrame,TslMaPeriod,0,TslMaMethod,TslMaAppPrice);
+      
+      rsiValue = iRSI(mySymbol,timeFrame,rsiPeriod, PRICE_CLOSE);
    
 //---
    return(INIT_SUCCEEDED);
@@ -90,18 +125,13 @@ void OnTick()
   {
 //---
 
-          // Indicator Handles   
-   
-   int Entryhandle= iBands(mySymbol,timeFrame,bbPeriod,myShift,bandStdEntry,appliedPrice);
-   
-   int SLhandle = iBands(mySymbol,timeFrame,bbPeriod,myShift,bandStdLossExit,appliedPrice);
-   
-   int TPhandle = iBands(mySymbol,timeFrame,bbPeriod,myShift,bandStdProfitExit,appliedPrice); 
+  
    
    
    //sort the price array from the cuurent candle downwards
    ArraySetAsSeries(bbupperEntryBuffer,true);
    ArraySetAsSeries(bblowerEntryBuffer,true);
+    ArraySetAsSeries(bbMidBuffer,true);
    ArraySetAsSeries(bbupperProfitBuffer,true);
    ArraySetAsSeries(bblowerProfitBuffer,true);
    ArraySetAsSeries(bbupperLossBuffer,true);
@@ -115,6 +145,7 @@ void OnTick()
    
    CopyBuffer(Entryhandle,1,0,3,bbupperEntryBuffer);
    CopyBuffer(Entryhandle,2,0,3,bblowerEntryBuffer);
+   CopyBuffer(TPhandle,0,0,3,bbMidBuffer);
    CopyBuffer(TPhandle,1,0,3,bbupperProfitBuffer);
    CopyBuffer(TPhandle,2,0,3,bblowerProfitBuffer);
    CopyBuffer(SLhandle,1,0,3,bbupperLossBuffer);
@@ -127,12 +158,13 @@ void OnTick()
    shortValue= NormalizeDouble(bbupperEntryBuffer[0], _Digits);
     buyValue= NormalizeDouble(bblowerEntryBuffer[0], _Digits);
    buyTPvalue= NormalizeDouble(bbupperProfitBuffer[0], _Digits);
+   TPvalue= NormalizeDouble(bbMidBuffer[0], _Digits);
     shortTPvalue= NormalizeDouble(bblowerProfitBuffer[0], _Digits);
     shortSLvalue= NormalizeDouble(bbupperLossBuffer[0], _Digits);
     buySLvalue= NormalizeDouble(bblowerLossBuffer[0], _Digits);
    
    // For RSI
-   int rsiValue = iRSI(mySymbol,timeFrame,rsiPeriod, PRICE_CLOSE);
+   
    CopyBuffer(rsiValue,0,0,3,iRSIBuffer);
    ArraySetAsSeries(iRSIBuffer,true);
    double currentRSI = NormalizeDouble(iRSIBuffer[0],2);
@@ -159,7 +191,10 @@ void OnTick()
                      
                      if (currentRSI >= rsiLowerLevel && previousRSI < rsiLowerLevel) { //Buying
                      
-                           if ( latestPrice.ask == buyValue) {
+                           double lowerSellBand = buyValue -= adjustmentFactor;
+                           double upperSellBand = buyValue += adjustmentFactor;
+         
+                           if ( latestPrice.ask >= lowerSellBand || latestPrice.ask <= upperSellBand) {
                            
                            
                            Alert("Price is below signalPrice. Sending buy order");
@@ -176,7 +211,7 @@ void OnTick()
                                           request.symbol= mySymbol;                      // symbol
                                           request.volume= optimalVolume;                          // Calculated using custom function
                                           request.sl=buySLvalue;                                // Stop Loss is not specified
-                                          request.tp= buyTPvalue;                                // Take Profit is not specified     
+                                          request.tp= TPvalue;                                // Take Profit is not specified     
                                           request.deviation = 10;                         //set slippage
                                           request.comment = "bought using BB trader";
                                           //--- form the order type
@@ -209,7 +244,10 @@ void OnTick()
                     
                     if(currentRSI <= rsiUpperLevel && previousRSI > rsiUpperLevel) {
                     
-                           if ( latestPrice.bid == shortValue) { //Shorting
+                           double lowerSellBand = shortValue -= adjustmentFactor;
+                           double upperSellBand = shortValue += adjustmentFactor;
+         
+                           if ( latestPrice.bid >= lowerSellBand || latestPrice.bid <= upperSellBand) { //Shorting
                     
                                           Alert("Price is above signalPrice. Sending Short order");
                                        
@@ -224,7 +262,7 @@ void OnTick()
                                           request.symbol= mySymbol;                      // symbol
                                           request.volume= optimalVolume;                          // calculated using custom lot size function
                                           request.sl=shortSLvalue;                                // Stop Loss is not specified
-                                          request.tp= shortTPvalue;                                // Take Profit is not specified     
+                                          request.tp= TPvalue;                                // Take Profit is not specified     
                                           request.deviation = 10;                         //set slippage
                                           request.comment = "bought using BB trader";
                                           //--- form the order type
@@ -257,6 +295,96 @@ void OnTick()
                      
                            
           }
+          
+                if (CheckIfOpenOrdersByMagicNB(EXPERT_MAGIC)) {
+                
+                
+                     for (int i = PositionsTotal()-1; i>=0; i--) {
+                                    ulong posTicket = PositionGetTicket(i);
+                                    
+                                    if(PositionSelectByTicket(posTicket)) {
+                                          
+                                          
+                                          double PosOpenPrice = PositionGetDouble(POSITION_PRICE_OPEN);
+                                          double posSL = PositionGetDouble(POSITION_SL);
+                                          double posTP = PositionGetDouble(POSITION_TP);
+                                          double bid = SymbolInfoDouble(_Symbol, SYMBOL_BID);
+                                          double ask = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
+                                          
+                                          double ma[];
+                                          CopyBuffer(handleMa,MAIN_LINE,0,1,ma);
+                                          
+                                          if(PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY) {
+                                          
+                                                   if(bid >PosOpenPrice + TslTriggerPoints* _Point) {
+                                                         double sl = bid - TslPoints * _Point;
+                                                         
+                                                         if(sl > posSL){
+                                                         
+                                                               if(trade.PositionModify(posTicket,sl,posTP)) {
+                                                               
+                                                                     Print(__FUNCTION__," > Pos #",posTicket, " was modified by ma tsl ..." );
+                                                               }
+                                                         
+                                                         }
+                                                   }      
+                                                         
+                                                   if(ArraySize(ma) > 0) {
+                                                   
+                                                         double sl = ma[0];
+                                                         sl = NormalizeDouble(sl, _Digits);
+                                                         
+                                                         if((sl> posSL || posSL == 0) && sl < bid) {
+                                                         
+                                                               if(trade.PositionModify(posTicket,sl,posTP)) {
+                                                               
+                                                                  Print(__FUNCTION__," > Pos #",posTicket, " was modified by ma tsl ..." );
+                                                               }
+                                                         }
+                                                   }
+                                                        
+                                                
+                                                } else if(PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_SELL) {
+                                                
+                                                      if(ask <PosOpenPrice-+ TslTriggerPoints* _Point) {
+                                                      double sl = ask + TslPoints * _Point;
+                                                      
+                                                            if(sl < posSL|| posSL == 0){
+                                                            
+                                                                  if(trade.PositionModify(posTicket,sl,posTP)) {
+                                                                  
+                                                                        Print(__FUNCTION__," > Pos #",posTicket, " was modified by ma tsl ..." );
+                                                                    }
+                                                            
+                                                              } 
+                                                        
+                                                        }
+                                                      
+                                                      if(ArraySize(ma) > 0) {
+                                                   
+                                                         double sl = ma[0];
+                                                         sl = NormalizeDouble(sl, _Digits);
+                                                         
+                                                         if((sl< posSL || posSL == 0) && sl > ask) {
+                                                         
+                                                               if(trade.PositionModify(posTicket,sl,posTP)) {
+                                                               
+                                                                  Print(__FUNCTION__," > Pos #",posTicket, " was modified by ma tsl ..." );
+                                                                 }
+                                                           }
+                                                        }     
+                                                
+                                                                                    
+                                                   }
+                                    
+                                    }
+                                    
+                              
+                                                     
+                              }
+                     
+                
+                }
         }
   
   }

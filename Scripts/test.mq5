@@ -12,23 +12,40 @@
 //| Script program start function                                    |
 //+------------------------------------------------------------------+
 #include <CustomIndicator01.mqh>
-      
+  #include <Trade\SymbolInfo.mqh>
+  #include <Trade\Trade.mqh>;
+  
+  string mySymbol = _Symbol;
+  int openOrderID;
+  ulong orderTicket;
+  
+  CTrade trade;
+     
+     
+       
  
 
 void OnStart()
   {
 //---
    
-   
- 
-   
+  if (CheckIfOpenOrdersByMagicNB(555)) {
   
-   Alert(" ");
+  Alert ("Yes");
+  }
+                           
+                           
+                           
+                                   
    
-   Alert(string(SymbolInfoDouble(Symbol(),SYMBOL_TRADE_CONTRACT_SIZE)));
-   
-   
-   
+                           
+                        
+
    
   }
 //+------------------------------------------------------------------+
+
+
+
+   
+

@@ -25,6 +25,7 @@ input int bandStdLossExit = 4;
    input ENUM_APPLIED_PRICE appliedPrice = PRICE_CLOSE; //get the price to apply
    input ENUM_TIMEFRAMES timeFrame = PERIOD_CURRENT; //Get the period to use or use default
    input double risk = 0.02; //Get Maximum Account risk per trade
+   input double adjustmentFactor = 0.0001; //set variance in price from BB to enter trade
    
    double shortValue;
    double buyValue;
@@ -60,6 +61,18 @@ input int bandStdLossExit = 4;
     
    //Optimal Take Profit
    double optimalTakeProfit; 
+   
+   
+   //Indicators
+    int Entryhandle;
+   
+   int SLhandle;
+   
+   int TPhandle; 
+   
+   int rsiValue;
+   
+   
 //+------------------------------------------------------------------+
 //| Expert initialization function                                   |
 //+------------------------------------------------------------------+
@@ -68,6 +81,13 @@ int OnInit()
 //---
     Alert("");
     Alert("Starting Strategy RSI Crossover Alert");
+       
+   Entryhandle= iBands(mySymbol,timeFrame,bbPeriod,myShift,bandStdEntry,appliedPrice);
+   
+   SLhandle = iBands(mySymbol,timeFrame,bbPeriod,myShift,bandStdLossExit,appliedPrice);
+   
+   TPhandle = iBands(mySymbol,timeFrame,bbPeriod,myShift,bandStdProfitExit,appliedPrice); 
+   rsiValue = iRSI(mySymbol,timeFrame,rsiPeriod, PRICE_CLOSE);
    
 //---
    return(INIT_SUCCEEDED);
@@ -88,12 +108,7 @@ void OnTick()
 //---
     
       // Bollinger Bands Indicator Handles   
-   
-   int Entryhandle= iBands(mySymbol,timeFrame,bbPeriod,myShift,bandStdEntry,appliedPrice);
-   
-   int SLhandle = iBands(mySymbol,timeFrame,bbPeriod,myShift,bandStdLossExit,appliedPrice);
-   
-   int TPhandle = iBands(mySymbol,timeFrame,bbPeriod,myShift,bandStdProfitExit,appliedPrice); 
+
    
    
    //sort the price array from the cuurent candle downwards
@@ -131,7 +146,7 @@ void OnTick()
    buySLvalue= NormalizeDouble(bblowerLossBuffer[0], _Digits);
    
    // For RSI
-   int rsiValue = iRSI(mySymbol,timeFrame,rsiPeriod, PRICE_CLOSE);
+   
    CopyBuffer(rsiValue,0,0,3,iRSIBuffer);
    ArraySetAsSeries(iRSIBuffer,true);
    double currentRSI = NormalizeDouble(iRSIBuffer[0],2);
@@ -142,9 +157,11 @@ void OnTick()
                       MqlTick latestPrice; //structure to get the latest prices
                       SymbolInfoTick(mySymbol, latestPrice); // Assign current prices to structure 
                     
-                        if (currentRSI == rsiLowerLevel && previousRSI < rsiLowerLevel) {
-                     
-                                             if ( latestPrice.ask == buyValue) { //Buying
+                        if (currentRSI >= rsiLowerLevel && previousRSI < rsiLowerLevel) {
+                                          double lowerSellBand = buyValue -= adjustmentFactor;
+                                          double upperSellBand = buyValue += adjustmentFactor;
+                        
+                                          if ( latestPrice.ask >= lowerSellBand || latestPrice.ask <= upperSellBand) { //Buying
                                                 
                                                 
                                                 Alert("Buy signal. Computing order");
@@ -161,16 +178,18 @@ void OnTick()
                              }
                              
                              
-                        if (currentRSI == rsiUpperLevel && previousRSI > rsiUpperLevel) {
+                        if (currentRSI <= rsiUpperLevel && previousRSI > rsiUpperLevel) {
+                                          double lowerSellBand = shortValue -= adjustmentFactor;
+                                          double upperSellBand = shortValue += adjustmentFactor;
                         
-                                          if ( latestPrice.bid == shortValue) { //Shorting
+                                          if ( latestPrice.bid >= lowerSellBand || latestPrice.bid <= upperSellBand) { //Shorting
                                  
                                           Alert("Short signal. Computing order");
                                        
                                        
                                           double optimalVolume = OptimalLotSize(risk,latestPrice.bid,shortSLvalue);
                                           
-                                          Alert("Buy ", optimalVolume, " ", mySymbol, "at ", latestPrice.bid, "TP: ", shortTPvalue, "SL: ", shortSLvalue);
+                                          Alert("Sell ", optimalVolume, " ", mySymbol, " at ", latestPrice.bid, " TP: ", shortTPvalue, " SL: ", shortSLvalue);
                                           }
                                                 
                                                 

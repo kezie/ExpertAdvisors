@@ -230,6 +230,54 @@
    
    bool CheckIfOpenOrdersByMagicNB(int magicNB)
 {
+   /*int openOrders = OrdersTotal();
+   int openPositions = PositionsTotal();
+   string chartSymbol = _Symbol;
+   bool token1 = false;
+   bool token2 = false;
+   
+      
+   //Check for open positions
+   for(int i = 0; i < openOrders; i++)
+   {
+       if(OrderSelect(OrderGetTicket(i))==true)
+         {
+               if(OrderSelect(OrderGetString(ORDER_SYMBOL, chartSymbol))==true)
+               {
+                  if(OrderGetInteger(ORDER_MAGIC) == magicNB) 
+                  {
+                  
+                     token2 = true;
+                     
+                  }  
+               }
+         }   
+   }
+   
+   
+   
+ 
+   
+   //Check for open positions
+   for(int i = 0; i < openPositions; i++)
+   {
+               if(PositionSelect(PositionGetSymbol(i))==true)
+               {
+                  if(PositionGetInteger(POSITION_MAGIC) == magicNB) 
+                  {
+                  
+                     token1 = true;
+                     
+                  }  
+               }
+   }
+   
+   if (token1 || token2) {
+   return true;
+   }*/
+   
+  
+  /*
    int openPositions = PositionsTotal();
    
    //Check for open positions
@@ -245,7 +293,8 @@
          }  
       }
    }
-   /*
+   */
+   int openPositions = PositionsTotal();
    int openOrders = OrdersTotal();
    
    bool token1 = false;
@@ -283,7 +332,7 @@
    }
    if (token1 || token2) {
    return true;
-   } */
+   } 
    
    return false;
 }

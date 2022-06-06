@@ -10,6 +10,11 @@
 #property script_show_inputs
 #define EXPERT_MAGIC 123456
 #include <CustomIndicator01.mqh>;
+#include <Trade/Trade.mqh>;
+
+   // CTrade Public Object
+    CTrade trade;
+    
 
    string mySymbol = _Symbol;//Get current Symbol
    input int myPeriod = 20; //Get time period or use default
@@ -20,6 +25,22 @@
    input ENUM_TIMEFRAMES timeFrame = PERIOD_CURRENT; //Get the period to use or use default
    input double risk = 0.02; //Get Maximum Account risk per trade
    
+      //Trailing Stoploss
+   input int TslTriggerPoints = 5000;
+   input int TslPoints = 20;
+   
+   input ENUM_TIMEFRAMES TSLMaTimeFrame = PERIOD_CURRENT;
+   input int TslMaPeriod = 20;
+   input ENUM_MA_METHOD TslMaMethod = MODE_SMA;
+   input ENUM_APPLIED_PRICE TslMaAppPrice = PRICE_CLOSE;
+   
+      // Initialize Indicator Handles   
+   int handle4;
+
+   int handle1;
+   
+   int handleMa;
+   
 //+------------------------------------------------------------------+
 //| Expert initialization function                                   |
 //+------------------------------------------------------------------+
@@ -27,6 +48,11 @@ int OnInit()
   {
 //---
    Alert("The BB_1&4 EA is loaded");
+      // Indicator Handles   
+   handle4= iBands(mySymbol,timeFrame,myPeriod,myShift,slDeviation,appliedPrice);
+
+   handle1= iBands(mySymbol,timeFrame,myPeriod,myShift,mainDeviation,appliedPrice);
+   handleMa = iMA(_Symbol, TSLMaTimeFrame,TslMaPeriod,0,TslMaMethod,TslMaAppPrice);
    
 //---
    return(INIT_SUCCEEDED);
@@ -53,10 +79,7 @@ void OnTick()
    double bb1mainBuffer[];
    double bb1lowerBuffer[];
    
-      // Indicator Handles   
-   int handle4= iBands(mySymbol,timeFrame,myPeriod,myShift,slDeviation,appliedPrice);
-
-   int handle1= iBands(mySymbol,timeFrame,myPeriod,myShift,mainDeviation,appliedPrice);
+   
    
    
    
@@ -187,11 +210,97 @@ void OnTick()
                Alert (shortValue);
                
                
-         } else {
-               
-               Alert(" ");
-               Alert("No open trades signals");
-         }
+         } 
+         
+            if (CheckIfOpenOrdersByMagicNB(EXPERT_MAGIC)) {
+                
+                
+                     for (int i = PositionsTotal()-1; i>=0; i--) {
+                                    ulong posTicket = PositionGetTicket(i);
+                                    
+                                    if(PositionSelectByTicket(posTicket)) {
+                                          
+                                          
+                                          double PosOpenPrice = PositionGetDouble(POSITION_PRICE_OPEN);
+                                          double posSL = PositionGetDouble(POSITION_SL);
+                                          double posTP = PositionGetDouble(POSITION_TP);
+                                          double bid = SymbolInfoDouble(_Symbol, SYMBOL_BID);
+                                          double ask = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
+                                          
+                                          double ma[];
+                                          CopyBuffer(handleMa,MAIN_LINE,0,1,ma);
+                                          
+                                          if(PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY) {
+                                          
+                                                   if(bid >PosOpenPrice + TslTriggerPoints* _Point) {
+                                                         double sl = bid - TslPoints * _Point;
+                                                         
+                                                         if(sl > posSL){
+                                                         
+                                                               if(trade.PositionModify(posTicket,sl,posTP)) {
+                                                               
+                                                                     Print(__FUNCTION__," > Pos #",posTicket, " was modified by ma tsl ..." );
+                                                               }
+                                                         
+                                                         }
+                                                   }      
+                                                         
+                                                   if(ArraySize(ma) > 0) {
+                                                   
+                                                         double sl = ma[0];
+                                                         sl = NormalizeDouble(sl, _Digits);
+                                                         
+                                                         if((sl> posSL || posSL == 0) && sl < bid) {
+                                                         
+                                                               if(trade.PositionModify(posTicket,sl,posTP)) {
+                                                               
+                                                                  Print(__FUNCTION__," > Pos #",posTicket, " was modified by ma tsl ..." );
+                                                               }
+                                                         }
+                                                   }
+                                                        
+                                                
+                                                } else if(PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_SELL) {
+                                                
+                                                      if(ask <PosOpenPrice-+ TslTriggerPoints* _Point) {
+                                                      double sl = ask + TslPoints * _Point;
+                                                      
+                                                            if(sl < posSL|| posSL == 0){
+                                                            
+                                                                  if(trade.PositionModify(posTicket,sl,posTP)) {
+                                                                  
+                                                                        Print(__FUNCTION__," > Pos #",posTicket, " was modified by ma tsl ..." );
+                                                                    }
+                                                            
+                                                              } 
+                                                        
+                                                        }
+                                                      
+                                                      if(ArraySize(ma) > 0) {
+                                                   
+                                                         double sl = ma[0];
+                                                         sl = NormalizeDouble(sl, _Digits);
+                                                         
+                                                         if((sl< posSL || posSL == 0) && sl > ask) {
+                                                         
+                                                               if(trade.PositionModify(posTicket,sl,posTP)) {
+                                                               
+                                                                  Print(__FUNCTION__," > Pos #",posTicket, " was modified by ma tsl ..." );
+                                                                 }
+                                                           }
+                                                        }     
+                                                
+                                                                                    
+                                                   }
+                                    
+                                    }
+                                    
+                              
+                                                     
+                              }
+                     
+                
+                }
         
   
   }
